@@ -206,7 +206,7 @@
     
   for (int x=0; x<a.length; x++){                 // of the array, adjust them 
                rect(int(xPos+x*float(Width)/(a.length)),
-                    yPos+Height-2,
+                    yPos+(Height/2)-2,
                     Width/a.length-2,
                     -a[x]/(yMax-yMin)*Height);
                  }
