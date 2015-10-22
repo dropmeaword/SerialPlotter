@@ -171,6 +171,10 @@ void initSerial(String name, int rate) {
   println("Initializing Arduino on port " + name + " at a data rate of " + rate);
   if (!mockupSerial) {
     ard = new Arduino(this, name, rate);
+    // init analog pins as inputs
+    for(int p = 14; p <= 19; p++) {
+      ard.pinMode(p, Arduino.INPUT);
+    }
   }
   else
     ard = null;
