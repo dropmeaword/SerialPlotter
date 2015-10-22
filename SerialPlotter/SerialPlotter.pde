@@ -1,15 +1,16 @@
-import java.awt.Frame;
-import java.awt.BorderLayout;
-import controlP5.*; // http://www.sojamo.de/libraries/controlP5/
+import controlP5.*;
+import java.util.*;
 import processing.serial.*;
+import cc.arduino.*;
+
+Arduino ard;
 
 // default serial port
 String serialPortName = "/dev/tty.usbmodem1411";
 
 // If you want to debug the plotter without using a real serial port set this to true
-boolean mockupSerial = true;
+boolean mockupSerial = false;
 
-Serial serial;
 ControlP5 cp5;
 JSONObject plotterConfigJSON;
 
@@ -21,6 +22,9 @@ float[][] lineGraphValues = new float[6][100];
 float[] lineGraphSampleNumbers = new float[100];
 color[] graphColors = new color[6];
 boolean capturing = false;
+
+// used to contain the values of all analog pins
+float []pinValues = {0, 0, 0, 0, 0, 0, 0, 0};
 
 // possible serial datarates
 int []dataRates = {300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200};
@@ -41,7 +45,7 @@ void setup() {
   graphColors[5] = color(200, 46, 232);
 
   // settings save file
-  topSketchPath = sketchPath;
+  topSketchPath = sketchPath();
   String cfgname = topSketchPath+"/config.json";
   File file = new File(cfgname);
   if(file.exists()) {
@@ -75,42 +79,50 @@ void setup() {
 
   x += 120;
   int lastDataRate = int(getPlotterConfigString("ttyDataRate"));
-  DropdownList dr = cp5.addDropdownList("ttyDataRate").setPosition(x, y+30).setSize(60, 200).setValue(int(getPlotterConfigString("ttyDataRate")));
-  dr.actAsPulldownMenu(true);
+  ScrollableList dr = cp5.addScrollableList("ttyDataRate")
+                          .setPosition(x, y+8)
+                          .setSize(60, 200)
+                          .setValue(int(getPlotterConfigString("ttyDataRate")))
+                          .setOpen(false);
+  //dr.actAsPulldownMenu(true);
   dr.setBackgroundColor(color(190));
   dr.setItemHeight(20);
   dr.setBarHeight(18);
-  dr.captionLabel().set("Data rate");
-  dr.captionLabel().style().marginTop = 3;
-  dr.captionLabel().style().marginLeft = 3;
-  dr.valueLabel().style().marginTop = 3;
+  //dr.captionLabel().set("Data rate");
+  //dr.captionLabel().style().marginTop = 3;
+  //dr.captionLabel().style().marginLeft = 3;
+  //dr.valueLabel().style().marginTop = 3;
   int idx = 0;
   for(int rate : dataRates ) {
     dr.addItem( ""+rate, idx);
     idx++;
   }
-  dr.setIndex(lastDataRate);
+  dr.setValue(lastDataRate);
 
   x = 10;
   y += 24;
   // build-up serial port selector
   //cp5.addTextlabel("lblSerial").setText("Serial device").setPosition(x, y).setColor(0);
   int lastDevice = int(getPlotterConfigString("ttyDevice"));
-  DropdownList dd = cp5.addDropdownList("ttyDevice").setPosition(x, y+30).setSize(180, 200).setValue(int(getPlotterConfigString("ttyDevice")));
-  dd.actAsPulldownMenu(true);
+  ScrollableList dd = cp5.addScrollableList("ttyDevice")
+                          .setPosition(x, y+8)
+                          .setSize(180, 200)
+                          .setValue(int(getPlotterConfigString("ttyDevice")))
+                          .setOpen(false);
+  //dd.actAsPulldownMenu(true);
   dd.setBackgroundColor(color(190));
   dd.setItemHeight(20);
   dd.setBarHeight(18);
-  dd.captionLabel().set("Serial device");
-  dd.captionLabel().style().marginTop = 3;
-  dd.captionLabel().style().marginLeft = 3;
-  dd.valueLabel().style().marginTop = 3;
+  //dd.captionLabel().set("Serial device");
+  //dd.captionLabel().style().marginTop = 3;
+  //dd.captionLabel().style().marginLeft = 3;
+  //dd.valueLabel().style().marginTop = 3;
   int idx2 = 0;
-  for(String port : Serial.list() ) {
+  for(String port : Arduino.list() ) {
     dd.addItem(port, idx2);
     idx2++;
   }
-  dd.setIndex(lastDevice);
+  dd.setValue(lastDevice);
 
   x = 10;
   y += 40;
@@ -156,39 +168,56 @@ void setup() {
 }
 
 void initSerial(String name, int rate) {
-  println("Initializing serial port on " + name + " at a data rate of " + rate);
+  println("Initializing Arduino on port " + name + " at a data rate of " + rate);
   if (!mockupSerial) {
-    serial = new Serial(this, name, rate);
+    ard = new Arduino(this, name, rate);
   }
   else
-    serial = null;
+    ard = null;
 }
 
 byte[] inBuffer = new byte[100]; // holds serial message
 int i = 0; // loop variable
 
-void draw() {
-  if (mockupSerial || serial.available() > 0) {
-    String myString = "";
+// split the string of the format "12 13 14 15"
+// and return an array with individual numbers
+void convertToPinValues(String str) {
+    String[] nums = split(str, ' ');
+    int idx = 0;
+    for(String num : nums) {
+      pinValues[idx] = float(num);
+      idx++;
+      if(idx > 5) break;
+    }
+}
 
+void draw() {
+  if (mockupSerial || ard != null) {
+    String myString = "";
+    //float []vals;
+    
     if(capturing) {
       if (!mockupSerial) {
+        // read Arduino analog pin values directly
         try {
-          serial.readBytesUntil('\r', inBuffer);
+          // Arduino analog pins: A0 = 14 .. A5 = 19
+          pinValues[0] = ard.analogRead(14);
+          pinValues[1] = ard.analogRead(15);
+          pinValues[2] = ard.analogRead(16);
+          pinValues[3] = ard.analogRead(17);
+          pinValues[4] = ard.analogRead(18);
+          pinValues[5] = ard.analogRead(19);
         }
         catch (Exception e) {
         }
-        myString = new String(inBuffer);
       }
       else {
         myString = mockupSerialFunction();
+        convertToPinValues(myString);
       }
-    }
+    } // capturing
 
     //println(myString);
-
-    // split the string at delimiter (space)
-    String[] nums = split(myString, ' ');
     
     // count number of bars and line graphs to hide
     int numberOfInvisibleBars = 0;
@@ -208,13 +237,13 @@ void draw() {
 
     // build the arrays for bar charts and line graphs
     int barchartIndex = 0;
-    for (i=0; i<nums.length; i++) {
+    for (i=0; i< pinValues.length; i++) {
 
       // update barchart
       try {
         if (int(getPlotterConfigString("bcVisible"+(i+1))) == 1) {
           if (barchartIndex < barChartValues.length)
-            barChartValues[barchartIndex++] = float(nums[i])*float(getPlotterConfigString("bcMultiplier"+(i+1)));
+            barChartValues[barchartIndex++] = pinValues[i]*float(getPlotterConfigString("bcMultiplier"+(i+1)));
         }
         else {
         }
@@ -229,7 +258,7 @@ void draw() {
             lineGraphValues[i][k] = lineGraphValues[i][k+1];
           }
 
-          lineGraphValues[i][lineGraphValues[i].length-1] = float(nums[i])*float(getPlotterConfigString("lgMultiplier"+(i+1)));
+          lineGraphValues[i][lineGraphValues[i].length-1] = pinValues[i]*float(getPlotterConfigString("lgMultiplier"+(i+1)));
         }
       }
       catch (Exception e) {
@@ -291,7 +320,7 @@ void controlEvent(ControlEvent theEvent) {
   println("control: "+parameter);
 
   if(theEvent.isGroup()) {
-    value = theEvent.getGroup().value()+"";
+    value = theEvent.getGroup().getInfo(); //.value()+"";
     println("val = "+value);
     change = true;
   } else if (theEvent.isController()) {
@@ -336,3 +365,11 @@ String getPlotterConfigString(String id) {
   return r;
 }
 
+void keyPressed() {
+  switch(key) {
+    case 'd':
+    case 'D':
+      mockupSerial = !mockupSerial;
+      break;
+  }
+}
