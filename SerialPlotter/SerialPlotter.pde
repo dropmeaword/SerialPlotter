@@ -77,28 +77,6 @@ void setup() {
   cp5.addTextlabel("capture").setText("capture/idle").setPosition(x-10, y).setColor(0);
   cp5.addToggle("capToggle").setPosition(x, y+10).setValue(0).setMode(ControlP5.SWITCH);
 
-  x += 120;
-  int lastDataRate = int(getPlotterConfigString("ttyDataRate"));
-  ScrollableList dr = cp5.addScrollableList("ttyDataRate")
-                          .setPosition(x, y+8)
-                          .setSize(60, 200)
-                          .setValue(int(getPlotterConfigString("ttyDataRate")))
-                          .setOpen(false);
-  //dr.actAsPulldownMenu(true);
-  dr.setBackgroundColor(color(190));
-  dr.setItemHeight(20);
-  dr.setBarHeight(18);
-  //dr.captionLabel().set("Data rate");
-  //dr.captionLabel().style().marginTop = 3;
-  //dr.captionLabel().style().marginLeft = 3;
-  //dr.valueLabel().style().marginTop = 3;
-  int idx = 0;
-  for(int rate : dataRates ) {
-    dr.addItem( ""+rate, idx);
-    idx++;
-  }
-  dr.setValue(lastDataRate);
-
   x = 10;
   y += 24;
   // build-up serial port selector
@@ -167,7 +145,8 @@ void setup() {
   cp5.addToggle("lgVisible6").setPosition(x, y=y+40).setValue(int(getPlotterConfigString("lgVisible6"))).setMode(ControlP5.SWITCH).setColorActive(graphColors[5]);
 }
 
-void initSerial(String name, int rate) {
+void initSerial(String name) { //, int rate) {
+  int rate = 57600;
   println("Initializing Arduino on port " + name + " at a data rate of " + rate);
   if (!mockupSerial) {
     ard = new Arduino(this, name, rate);
@@ -308,7 +287,7 @@ void startCapture() {
   String serialName = Serial.list()[serialidx];
   int rateidx = int(getPlotterConfigString("ttyDataRate"));
   int serialRate = dataRates[rateidx];
-  initSerial(serialName, serialRate);
+  initSerial(serialName); //, serialRate);
 }
 
 void stopCapture() {
