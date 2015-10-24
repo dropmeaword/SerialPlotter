@@ -6,7 +6,7 @@ import cc.arduino.*;
 Arduino ard;
 
 // default serial port
-String serialPortName = "/dev/tty.usbmodem1411";
+String serialPortName = "/dev/tty.usbmodem1421";
 
 // If you want to debug the plotter without using a real serial port set this to true
 boolean mockupSerial = false;
@@ -146,10 +146,11 @@ void setup() {
 }
 
 void initSerial(String name) { //, int rate) {
+  String port = "/dev/cu.usbmodem1421";
   int rate = 57600;
-  println("Initializing Arduino on port " + name + " at a data rate of " + rate);
+  println("Initializing Arduino on port " + port + " at a data rate of " + rate);
   if (!mockupSerial) {
-    ard = new Arduino(this, name, rate);
+    ard = new Arduino(this, port, rate);
     // init analog pins as inputs
     for(int p = 14; p <= 19; p++) {
       ard.pinMode(p, Arduino.INPUT);
@@ -181,17 +182,20 @@ void draw() {
     
     if(capturing) {
       if (!mockupSerial) {
+        //if(ard != null) println("p19=" + ard.analogRead(16));
         // read Arduino analog pin values directly
         try {
           // Arduino analog pins: A0 = 14 .. A5 = 19
-          pinValues[0] = ard.analogRead(14);
-          pinValues[1] = ard.analogRead(15);
-          pinValues[2] = ard.analogRead(16);
-          pinValues[3] = ard.analogRead(17);
-          pinValues[4] = ard.analogRead(18);
-          pinValues[5] = ard.analogRead(19);
+          pinValues[0] = 1.0*ard.analogRead(0);
+          pinValues[1] = 1.0*ard.analogRead(1);
+          pinValues[2] = 1.0*ard.analogRead(2);
+          pinValues[3] = 1.0*ard.analogRead(4);
+          pinValues[4] = 1.0*ard.analogRead(4);
+          pinValues[5] = 1.0*ard.analogRead(5);
+          //println("Reading from firmatta");
         }
         catch (Exception e) {
+          println("Reading failed");
         }
       }
       else {
@@ -284,9 +288,9 @@ void startCapture() {
   println("Starting capture");
   capturing = true;
   int serialidx = int(getPlotterConfigString("ttyDevice"));
-  String serialName = Serial.list()[serialidx];
+  String serialName = Arduino.list()[serialidx];
   int rateidx = int(getPlotterConfigString("ttyDataRate"));
-  int serialRate = dataRates[rateidx];
+  //int serialRate = dataRates[rateidx];
   initSerial(serialName); //, serialRate);
 }
 
